@@ -17,6 +17,8 @@ public class RegisterGenerator : IIncrementalGenerator
         """
         #nullable enable
 
+        using System;
+
         namespace Simplify.ReactiveUI;
 
         [AttributeUsage(AttributeTargets.Class)]
@@ -67,6 +69,8 @@ public class RegisterGenerator : IIncrementalGenerator
         """
         #nullable enable
 
+        using System;
+
         namespace Simplify.ReactiveUI;
 
         [AttributeUsage(AttributeTargets.Class)]
@@ -98,6 +102,8 @@ public class RegisterGenerator : IIncrementalGenerator
         """
         #nullable enable
 
+        using System;
+
         namespace Simplify.ReactiveUI;
 
         [AttributeUsage(AttributeTargets.Class)]
@@ -128,6 +134,8 @@ public class RegisterGenerator : IIncrementalGenerator
     private const string SplatRegisterViewModelAttribute =
         """
         #nullable enable
+
+        using System;
 
         namespace Simplify.ReactiveUI;
 
@@ -277,7 +285,7 @@ public class RegisterGenerator : IIncrementalGenerator
                 .Replace("{{serviceType}}", $", typeof({info.ServiceType})")
                 .Replace("{{contract}}", ", null"));
 
-        var registers = builder.ToString(0, builder.Length - 2);
+        var registers = builder.Length > 0 ? builder.ToString(0, builder.Length - 2) : string.Empty;
 
         var output = RegisterClassTemplate
 #if DEBUG
