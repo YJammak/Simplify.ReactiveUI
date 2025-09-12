@@ -1,0 +1,9 @@
+﻿{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Simplify.ReactiveUI": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "..\\Simplify.ReactiveUI.Domain\\Simplify.ReactiveUI.Domain.csproj"
+    }
+  }
+}

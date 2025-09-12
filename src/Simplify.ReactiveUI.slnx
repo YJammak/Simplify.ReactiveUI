@@ -1,0 +1,5 @@
+﻿<Solution>
+  <Project Path="Simplify.ReactiveUI.Domain\Simplify.ReactiveUI.Domain.csproj" Type="Classic C#" />
+  <Project Path="Simplify.ReactiveUI.Test\Simplify.ReactiveUI.Test.csproj" Type="Classic C#" />
+  <Project Path="Simplify.ReactiveUI\Simplify.ReactiveUI.csproj" Type="Classic C#" />
+</Solution>
