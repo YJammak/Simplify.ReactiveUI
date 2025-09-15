@@ -207,14 +207,14 @@ public class RegisterGenerator : IIncrementalGenerator
 
         {{reactiveUI}}using Splat;
 
-        namespace Simplify.ReactiveUI;
+        namespace {{namespace}};
 
         public static class SplatRegisterExtensions
         {
             /// <summary>
             /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
             /// </summary>
-            public static void RegisterAll(this IMutableDependencyResolver resolver)
+            public static void RegisterAll{{method}}(this IMutableDependencyResolver resolver)
             {
         {{registers}}
             }
@@ -244,6 +244,20 @@ public class RegisterGenerator : IIncrementalGenerator
             ctx.AddSource("SplatRegisterViewModelAttribute.g.cs",
                 SourceText.From(SplatRegisterViewModelAttribute, Encoding.UTF8)));
 
+        var defaultNamespace = context.AnalyzerConfigOptionsProvider
+            .Select((options, _) =>
+            {
+                // 尝试从项目配置中获取默认命名空间
+                if (options.GlobalOptions.TryGetValue("build_property.RootNamespace", out var rootNs))
+                    return rootNs;
+
+                if (options.GlobalOptions.TryGetValue("build_property.DefaultNamespace", out var defaultNs))
+                    return defaultNs;
+
+                // 如果都获取不到，返回空字符串
+                return string.Empty;
+            });
+
         var registerProvider = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "Simplify.ReactiveUI.SplatRegisterAttribute",
@@ -268,8 +282,8 @@ public class RegisterGenerator : IIncrementalGenerator
                 Predicate,
                 RegisterViewModelTransform);
 
-        var combinedData = registerProvider
-            .Collect()
+        var combinedData = defaultNamespace
+            .Combine(registerProvider.Collect())
             .Combine(registerConstantProvider.Collect())
             .Combine(registerLazySingletonProvider.Collect())
             .Combine(registerViewModelProvider.Collect());
@@ -278,14 +292,16 @@ public class RegisterGenerator : IIncrementalGenerator
     }
 
     private void Generate(SourceProductionContext context,
-        (((ImmutableArray<RegisterInfos> RegisterInfos,
-            ImmutableArray<RegisterInfos> RegisterConstantInfos)
-            Left, ImmutableArray<RegisterInfos> RegisterLazySingletonInfos) Left,
-            ImmutableArray<RegisterInfos> RegisterViewModelInfos) args)
+        ((((string Namespace, ImmutableArray<RegisterInfos> RegisterInfos) Left, ImmutableArray<RegisterInfos>
+            RegisterConstantInfos) Left,
+            ImmutableArray<RegisterInfos> RegisterLazySingletonInfos) Left, ImmutableArray<RegisterInfos>
+            RegisterViewModelInfos) args)
     {
-        var registerInfos = args.Left.Left.RegisterInfos.IsDefaultOrEmpty
+        var namespaceString = args.Left.Left.Left.Namespace;
+
+        var registerInfos = args.Left.Left.Left.RegisterInfos.IsDefaultOrEmpty
             ? []
-            : args.Left.Left.RegisterInfos.SelectMany(r => r.Infos).ToList();
+            : args.Left.Left.Left.RegisterInfos.SelectMany(r => r.Infos).ToList();
 
         var registerConstantInfos = args.Left.Left.RegisterConstantInfos.IsDefaultOrEmpty
             ? []
@@ -340,6 +356,9 @@ public class RegisterGenerator : IIncrementalGenerator
             .Replace("{{generatedAt}}", string.Empty)
 #endif
             .Replace("{{reactiveUI}}", registerViewModelInfos.Count == 0 ? "" : "using ReactiveUI;\r\n")
+            .Replace("{{namespace}}",
+                string.IsNullOrWhiteSpace(namespaceString) ? "Simplify.ReactiveUI" : namespaceString)
+            .Replace("{{method}}", namespaceString.Replace(".", ""))
             .Replace("{{registers}}", registers);
 
         context.AddSource("SplatRegisterExtensions.g.cs", SourceText.From(output, Encoding.UTF8));

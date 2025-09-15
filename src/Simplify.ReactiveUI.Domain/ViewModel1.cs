@@ -10,6 +10,6 @@ public class ViewModel1 : IViewModel
 {
     private void Test()
     {
-        Locator.CurrentMutable.RegisterAll();
+        Locator.CurrentMutable.RegisterAllSimplifyReactiveUIDomain();
     }
 }
