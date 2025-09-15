@@ -26,8 +26,13 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Simplify.ReactiveUI.Domain\Simplify.ReactiveUI.Domain.csproj" />
-      <ProjectReference Include="..\Simplify.ReactiveUI\Simplify.ReactiveUI.csproj" />
+        <ProjectReference Include="..\Simplify.ReactiveUI.Domain\Simplify.ReactiveUI.Domain.csproj"/>
+        <ProjectReference Include="..\Simplify.ReactiveUI\Simplify.ReactiveUI.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="Address.cs"/>
+        <EmbeddedResource Include="Address.cs"/>
     </ItemGroup>
 
 </Project>
