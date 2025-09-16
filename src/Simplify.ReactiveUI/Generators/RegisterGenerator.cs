@@ -390,10 +390,11 @@ public class RegisterGenerator : IIncrementalGenerator
         return true;
     }
 
-    private static RegisterInfos RegisterTransform(GeneratorAttributeSyntaxContext syntaxContext,
-        CancellationToken cancellationToken)
+    private static RegisterInfos RegisterTransform(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken token)
     {
-        var infos = GetInfos(syntaxContext, cancellationToken);
+        var infos = GetInfos(context, token);
         if (infos == null)
             return new RegisterInfos
             {
@@ -439,10 +440,10 @@ public class RegisterGenerator : IIncrementalGenerator
     }
 
     private static RegisterInfos RegisterConstantTransform(
-        GeneratorAttributeSyntaxContext syntaxContext,
-        CancellationToken cancellationToken)
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken token)
     {
-        var infos = GetInfos(syntaxContext, cancellationToken);
+        var infos = GetInfos(context, token);
         if (infos == null)
             return new RegisterInfos
             {
@@ -488,10 +489,10 @@ public class RegisterGenerator : IIncrementalGenerator
     }
 
     private static RegisterInfos RegisterLazySingletonTransform(
-        GeneratorAttributeSyntaxContext syntaxContext,
-        CancellationToken cancellationToken)
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken token)
     {
-        var infos = GetInfos(syntaxContext, cancellationToken);
+        var infos = GetInfos(context, token);
         if (infos == null)
             return new RegisterInfos
             {
@@ -529,11 +530,11 @@ public class RegisterGenerator : IIncrementalGenerator
         };
     }
 
-    private RegisterInfos RegisterViewModelTransform(
-        GeneratorAttributeSyntaxContext syntaxContext,
-        CancellationToken cancellationToken)
+    private static RegisterInfos RegisterViewModelTransform(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken token)
     {
-        var classSymbol = syntaxContext.SemanticModel.GetDeclaredSymbol(syntaxContext.TargetNode);
+        var classSymbol = context.SemanticModel.GetDeclaredSymbol(context.TargetNode);
         if (classSymbol is not INamedTypeSymbol namedTypeSymbol)
             return new RegisterInfos
             {
@@ -541,7 +542,7 @@ public class RegisterGenerator : IIncrementalGenerator
                 Infos = []
             };
 
-        var attribute = syntaxContext.Attributes.Single();
+        var attribute = context.Attributes.Single();
         var location = attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation();
         var viewModel = attribute.ConstructorArguments[0].Value?.ToString();
         if (viewModel == null)
@@ -596,7 +597,7 @@ public class RegisterGenerator : IIncrementalGenerator
         var className = namedTypeSymbol.ToDisplayString();
         var baseClassName = GetDirectBaseClassName(namedTypeSymbol);
 
-        if (includeBaseType && baseClassName != null && !serviceTypes.Contains(baseClassName))
+        if (includeBaseType && baseClassName != null)
             serviceTypes.Add(baseClassName);
 
         if (includeInterfaces)
@@ -607,8 +608,7 @@ public class RegisterGenerator : IIncrementalGenerator
             foreach (var @interface in interfaces)
             {
                 var interfaceName = @interface.ToDisplayString();
-                if (!serviceTypes.Contains(interfaceName))
-                    serviceTypes.Add(interfaceName);
+                serviceTypes.Add(interfaceName);
             }
         }
 
