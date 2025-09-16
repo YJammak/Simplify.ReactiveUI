@@ -315,6 +315,27 @@ public class RegisterGenerator : IIncrementalGenerator
             ? []
             : args.RegisterViewModelInfos.SelectMany(r => r.Infos).ToList();
 
+        var hasDiagnostic = false;
+        var registerDictionary = new Dictionary<string, RegisterInfo>();
+        foreach (var info in registerInfos
+                     .Concat(registerConstantInfos)
+                     .Concat(registerLazySingletonInfos)
+                     .Concat(registerViewModelInfos))
+        {
+            var key = $"{info.ImplementationType}_{info.ServiceType}_{info.Contract}";
+            if (registerDictionary.TryGetValue(key, out _) && info.Location != null)
+            {
+                context.ReportDiagnostic(RegisterRepeated(info.Location, info.ImplementationType));
+                hasDiagnostic = true;
+                continue;
+            }
+
+            registerDictionary.Add(key, info);
+        }
+
+        if (hasDiagnostic)
+            return;
+
         var builder = new StringBuilder();
         foreach (var info in registerInfos)
             builder.AppendLine(RegisterTemplate
@@ -380,7 +401,7 @@ public class RegisterGenerator : IIncrementalGenerator
                 Infos = []
             };
 
-        var (serviceTypes, className, contract) = infos.Value;
+        var (serviceTypes, className, contract, location) = infos.Value;
 
         if (serviceTypes == null)
             return new RegisterInfos
@@ -398,7 +419,8 @@ public class RegisterGenerator : IIncrementalGenerator
                     new RegisterInfo
                     {
                         ImplementationType = className,
-                        Contract = contract
+                        Contract = contract,
+                        Location = location
                     }
                 ]
             };
@@ -410,7 +432,8 @@ public class RegisterGenerator : IIncrementalGenerator
             {
                 ServiceType = s,
                 ImplementationType = className,
-                Contract = contract
+                Contract = contract,
+                Location = location
             }).ToList()
         };
     }
@@ -427,7 +450,7 @@ public class RegisterGenerator : IIncrementalGenerator
                 Infos = []
             };
 
-        var (serviceTypes, className, contract) = infos.Value;
+        var (serviceTypes, className, contract, location) = infos.Value;
 
         if (serviceTypes == null)
             return new RegisterInfos
@@ -445,7 +468,8 @@ public class RegisterGenerator : IIncrementalGenerator
                     new RegisterInfo
                     {
                         ImplementationType = className,
-                        Contract = contract
+                        Contract = contract,
+                        Location = location
                     }
                 ]
             };
@@ -457,7 +481,8 @@ public class RegisterGenerator : IIncrementalGenerator
             {
                 ServiceType = s,
                 ImplementationType = className,
-                Contract = contract
+                Contract = contract,
+                Location = location
             }).ToList()
         };
     }
@@ -474,7 +499,7 @@ public class RegisterGenerator : IIncrementalGenerator
                 Infos = []
             };
 
-        var (serviceTypes, className, contract) = infos.Value;
+        var (serviceTypes, className, contract, location) = infos.Value;
 
         if (serviceTypes.Count == 0)
             return new RegisterInfos
@@ -485,7 +510,8 @@ public class RegisterGenerator : IIncrementalGenerator
                     new RegisterInfo
                     {
                         ImplementationType = className,
-                        Contract = contract
+                        Contract = contract,
+                        Location = location
                     }
                 ]
             };
@@ -497,7 +523,8 @@ public class RegisterGenerator : IIncrementalGenerator
             {
                 ServiceType = s,
                 ImplementationType = className,
-                Contract = contract
+                Contract = contract,
+                Location = location
             }).ToList()
         };
     }
@@ -515,6 +542,7 @@ public class RegisterGenerator : IIncrementalGenerator
             };
 
         var attribute = syntaxContext.Attributes.Single();
+        var location = attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation();
         var viewModel = attribute.ConstructorArguments[0].Value?.ToString();
         if (viewModel == null)
             return new RegisterInfos
@@ -533,15 +561,17 @@ public class RegisterGenerator : IIncrementalGenerator
                 {
                     ServiceType = $"IViewFor<{viewModel}>",
                     ImplementationType = className,
-                    Contract = null
+                    Contract = null,
+                    Location = location
                 }
             ]
         };
     }
 
-    private static (List<string> ServiceTypes, string ImplementationType, string? Contract)? GetInfos(
-        GeneratorAttributeSyntaxContext syntaxContext,
-        CancellationToken _)
+    private static (List<string> ServiceTypes, string ImplementationType, string? Contract, Location? Location)?
+        GetInfos(
+            GeneratorAttributeSyntaxContext syntaxContext,
+            CancellationToken _)
     {
         var classSymbol = syntaxContext.SemanticModel.GetDeclaredSymbol(syntaxContext.TargetNode);
         if (classSymbol is not INamedTypeSymbol namedTypeSymbol)
@@ -554,7 +584,6 @@ public class RegisterGenerator : IIncrementalGenerator
                 : attribute.ConstructorArguments[0].Values
                     .Select(t => t.Value?.ToString() ?? "")
                     .Where(x => !string.IsNullOrEmpty(x))
-                    .Distinct()
                     .ToList()
             : attribute.ConstructorArguments[0].Value == null
                 ? []
@@ -583,7 +612,8 @@ public class RegisterGenerator : IIncrementalGenerator
             }
         }
 
-        return (serviceTypes, className, contract);
+        var location = attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation();
+        return (serviceTypes, className, contract, location);
     }
 
     private static bool IsDirectlyImplementedInterface(INamedTypeSymbol namedTypeSymbol, ITypeSymbol @interface)
@@ -603,5 +633,20 @@ public class RegisterGenerator : IIncrementalGenerator
 
         var baseClassFullName = directBaseClass.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         return baseClassFullName is "System.Object" or "object" ? null : baseClassFullName;
+    }
+
+    private static Diagnostic RegisterRepeated(Location location, string identifier)
+    {
+        var descriptor = new DiagnosticDescriptor(
+            "RegisterRepeated",
+            "Register Cannot Be Repeated",
+            "Cannot generate a register for '{0}' because it is a duplicate.",
+            "Simplify.ReactiveUI.Generators",
+            DiagnosticSeverity.Error,
+            true
+        );
+        var result = Diagnostic.Create(descriptor, location, identifier);
+
+        return result;
     }
 }

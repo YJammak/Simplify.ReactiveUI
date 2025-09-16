@@ -1,7 +1,11 @@
-﻿namespace Simplify.ReactiveUI.Models;
+﻿using Microsoft.CodeAnalysis;
+
+namespace Simplify.ReactiveUI.Models;
 
 public record struct RegisterInfo
 {
+    public Location? Location { get; set; }
+
     public string? Contract { get; set; }
 
     public string? ServiceType { get; set; }
