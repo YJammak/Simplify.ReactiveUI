@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -193,9 +192,9 @@ public class RegisterGenerator : IIncrementalGenerator
         [AttributeUsage(AttributeTargets.Class)]
         internal class SplatRegisterViewModelAttribute : Attribute
         {
-            public Type ViewModel { get; }
+            public Type? ViewModel { get; }
 
-            public SplatRegisterViewModelAttribute(Type viewModel)
+            public SplatRegisterViewModelAttribute(Type? viewModel = null)
             {
                 ViewModel = viewModel;
             }
@@ -307,21 +306,28 @@ public class RegisterGenerator : IIncrementalGenerator
     {
         var namespaceString = args.Left.Left.Left.Namespace;
 
+        var selectMany = (RegisterInfos infos) =>
+        {
+            if (infos.Diagnostic != null)
+                context.ReportDiagnostic(infos.Diagnostic);
+            return infos.Infos;
+        };
+
         var registerInfos = args.Left.Left.Left.RegisterInfos.IsDefaultOrEmpty
             ? []
-            : args.Left.Left.Left.RegisterInfos.SelectMany(r => r.Infos).ToList();
+            : args.Left.Left.Left.RegisterInfos.SelectMany(selectMany).ToList();
 
         var registerConstantInfos = args.Left.Left.RegisterConstantInfos.IsDefaultOrEmpty
             ? []
-            : args.Left.Left.RegisterConstantInfos.SelectMany(r => r.Infos).ToList();
+            : args.Left.Left.RegisterConstantInfos.SelectMany(selectMany).ToList();
 
         var registerLazySingletonInfos = args.Left.RegisterLazySingletonInfos.IsDefaultOrEmpty
             ? []
-            : args.Left.RegisterLazySingletonInfos.SelectMany(r => r.Infos).ToList();
+            : args.Left.RegisterLazySingletonInfos.SelectMany(selectMany).ToList();
 
         var registerViewModelInfos = args.RegisterViewModelInfos.IsDefaultOrEmpty
             ? []
-            : args.RegisterViewModelInfos.SelectMany(r => r.Infos).ToList();
+            : args.RegisterViewModelInfos.SelectMany(selectMany).ToList();
 
         var hasDiagnostic = false;
         var registerDictionary = new Dictionary<string, RegisterInfo>();
@@ -569,10 +575,33 @@ public class RegisterGenerator : IIncrementalGenerator
             };
 
         var location = attribute!.ApplicationSyntaxReference?.GetSyntax().GetLocation();
+        var className = namedTypeSymbol.ToDisplayString();
+
+        var iViewForSymbol = namedTypeSymbol.AllInterfaces
+            .FirstOrDefault(i => i.ToDisplayString().StartsWith("ReactiveUI.IViewFor<"));
+
+        if (iViewForSymbol == null)
+        {
+            var classLocation = namedTypeSymbol.DeclaringSyntaxReferences
+                .Select(dsr => dsr.GetSyntax())
+                .OfType<TypeDeclarationSyntax>()
+                .FirstOrDefault()?
+                .Identifier.GetLocation();
+            return new RegisterInfos
+            {
+                Diagnostic = classLocation == null
+                    ? null
+                    : NotInheritedIForView(classLocation, className),
+                Type = RegisterType.ViewModel,
+                Infos = []
+            };
+        }
+
         var genericArgument = attribute.GetGenericType();
-        var viewModel = string.IsNullOrWhiteSpace(genericArgument)
-            ? attribute.ConstructorArguments[0].Value?.ToString()
-            : genericArgument;
+        var viewModel = (string.IsNullOrWhiteSpace(genericArgument)
+                            ? attribute.ConstructorArguments[0].Value?.ToString()
+                            : genericArgument)
+                        ?? iViewForSymbol.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         if (string.IsNullOrWhiteSpace(viewModel))
             return new RegisterInfos
             {
@@ -580,7 +609,6 @@ public class RegisterGenerator : IIncrementalGenerator
                 Infos = []
             };
 
-        var className = namedTypeSymbol.ToDisplayString();
         return new RegisterInfos
         {
             Type = RegisterType.ViewModel,
@@ -669,6 +697,21 @@ public class RegisterGenerator : IIncrementalGenerator
             "RegisterRepeated",
             "Register Cannot Be Repeated",
             "Cannot generate a register for '{0}' because it is a duplicate.",
+            "Simplify.ReactiveUI.Generators",
+            DiagnosticSeverity.Error,
+            true
+        );
+        var result = Diagnostic.Create(descriptor, location, identifier);
+
+        return result;
+    }
+
+    private static Diagnostic NotInheritedIForView(Location location, string identifier)
+    {
+        var descriptor = new DiagnosticDescriptor(
+            "NotInheritedIForView",
+            "Not Inherited From IForView Interface",
+            "Cannot generate a register for '{0}' because it not inherited from IForView.",
             "Simplify.ReactiveUI.Generators",
             DiagnosticSeverity.Error,
             true
