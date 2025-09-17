@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Simplify.ReactiveUI.Extensions;
 using Simplify.ReactiveUI.Models;
@@ -92,10 +93,10 @@ public class RegisterGenerator : IIncrementalGenerator
 
         using System;
 
-        internal Simplify.ReactiveUI;
+        namespace Simplify.ReactiveUI;
 
         [AttributeUsage(AttributeTargets.Class)]
-        public class SplatRegisterConstantAttribute : Attribute
+        internal class SplatRegisterConstantAttribute : Attribute
         {
             public Type[]? ServiceTypes { get; }
 
@@ -138,10 +139,10 @@ public class RegisterGenerator : IIncrementalGenerator
 
         using System;
 
-        internal Simplify.ReactiveUI;
+        namespace Simplify.ReactiveUI;
 
         [AttributeUsage(AttributeTargets.Class)]
-        public class SplatRegisterLazySingletonAttribute : Attribute
+        internal class SplatRegisterLazySingletonAttribute : Attribute
         {
             public Type[]? ServiceTypes { get; }
             
@@ -262,35 +263,38 @@ public class RegisterGenerator : IIncrementalGenerator
                 return string.Empty;
             });
 
-        var registerProvider = context.SyntaxProvider
+        var registerInfos = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "Simplify.ReactiveUI.SplatRegisterAttribute",
                 Predicate,
-                RegisterTransform);
+                RegisterTransform)
+            .Collect();
 
-        var registerConstantProvider = context.SyntaxProvider
+        var registerConstantInfos = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "Simplify.ReactiveUI.SplatRegisterConstantAttribute",
                 Predicate,
-                RegisterConstantTransform);
+                RegisterConstantTransform)
+            .Collect();
 
-        var registerLazySingletonProvider = context.SyntaxProvider
+        var registerLazySingletonInfos = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "Simplify.ReactiveUI.SplatRegisterLazySingletonAttribute",
                 Predicate,
-                RegisterLazySingletonTransform);
+                RegisterLazySingletonTransform)
+            .Collect();
 
-        var registerViewModelProvider = context.SyntaxProvider
-            .ForAttributeWithMetadataName(
-                "Simplify.ReactiveUI.SplatRegisterViewModelAttribute",
-                Predicate,
-                RegisterViewModelTransform);
+        var registerViewModelInfos = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                static (node, _) => node is ClassDeclarationSyntax { AttributeLists.Count: > 0 },
+                RegisterViewModelTransform)
+            .Collect();
 
         var combinedData = defaultNamespace
-            .Combine(registerProvider.Collect())
-            .Combine(registerConstantProvider.Collect())
-            .Combine(registerLazySingletonProvider.Collect())
-            .Combine(registerViewModelProvider.Collect());
+            .Combine(registerInfos)
+            .Combine(registerConstantInfos)
+            .Combine(registerLazySingletonInfos)
+            .Combine(registerViewModelInfos);
 
         context.RegisterSourceOutput(combinedData, Generate);
     }
@@ -534,11 +538,29 @@ public class RegisterGenerator : IIncrementalGenerator
         };
     }
 
-    private static RegisterInfos RegisterViewModelTransform(
-        GeneratorAttributeSyntaxContext context,
+    private RegisterInfos RegisterViewModelTransform(
+        GeneratorSyntaxContext context,
         CancellationToken token)
     {
-        var classSymbol = context.SemanticModel.GetDeclaredSymbol(context.TargetNode);
+        var symbol = context.SemanticModel.GetDeclaredSymbol(context.Node, token);
+
+        if (symbol is null)
+            return new RegisterInfos
+            {
+                Type = RegisterType.ViewModel,
+                Infos = []
+            };
+
+        if (!symbol.TryGetAttributeWithFullyQualifiedMetadataName(
+                "Simplify.ReactiveUI.SplatRegisterViewModelAttribute",
+                out var attribute))
+            return new RegisterInfos
+            {
+                Type = RegisterType.ViewModel,
+                Infos = []
+            };
+
+        var classSymbol = context.SemanticModel.GetDeclaredSymbol(context.Node, token);
         if (classSymbol is not INamedTypeSymbol namedTypeSymbol)
             return new RegisterInfos
             {
@@ -546,11 +568,11 @@ public class RegisterGenerator : IIncrementalGenerator
                 Infos = []
             };
 
-        var attribute = context.Attributes.Single();
-        var location = attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation();
-        var constructorArgument = attribute.GetConstructorArguments<string>().FirstOrDefault();
+        var location = attribute!.ApplicationSyntaxReference?.GetSyntax().GetLocation();
         var genericArgument = attribute.GetGenericType();
-        var viewModel = string.IsNullOrWhiteSpace(genericArgument) ? constructorArgument : genericArgument;
+        var viewModel = string.IsNullOrWhiteSpace(genericArgument)
+            ? attribute.ConstructorArguments[0].Value?.ToString()
+            : genericArgument;
         if (string.IsNullOrWhiteSpace(viewModel))
             return new RegisterInfos
             {

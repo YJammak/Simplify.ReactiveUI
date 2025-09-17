@@ -13,7 +13,7 @@
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/YJammak/Simplify.ReactiveUI.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-        <Version>0.1.1-alpha</Version>
+        <Version>0.1.3-alpha</Version>
         <Title>ReativeUI Related Source Generators</Title>
         <Description>Source generator for simplifying ReactiveUI programming.</Description>
         <Copyright>©2025 YJammak</Copyright>
