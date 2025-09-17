@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+using Simplify.ReactiveUI.Extensions;
 using Simplify.ReactiveUI.Models;
 
 namespace Simplify.ReactiveUI.Generators;
@@ -22,7 +23,7 @@ public class RegisterGenerator : IIncrementalGenerator
         namespace Simplify.ReactiveUI;
 
         [AttributeUsage(AttributeTargets.Class)]
-        public class SplatRegisterAttribute : Attribute
+        internal class SplatRegisterAttribute : Attribute
         {
             /// <summary>
             /// The types array which is used for the registration.
@@ -91,7 +92,7 @@ public class RegisterGenerator : IIncrementalGenerator
 
         using System;
 
-        namespace Simplify.ReactiveUI;
+        internal Simplify.ReactiveUI;
 
         [AttributeUsage(AttributeTargets.Class)]
         public class SplatRegisterConstantAttribute : Attribute
@@ -137,7 +138,7 @@ public class RegisterGenerator : IIncrementalGenerator
 
         using System;
 
-        namespace Simplify.ReactiveUI;
+        internal Simplify.ReactiveUI;
 
         [AttributeUsage(AttributeTargets.Class)]
         public class SplatRegisterLazySingletonAttribute : Attribute
@@ -186,7 +187,10 @@ public class RegisterGenerator : IIncrementalGenerator
         namespace Simplify.ReactiveUI;
 
         [AttributeUsage(AttributeTargets.Class)]
-        public class SplatRegisterViewModelAttribute : Attribute
+        internal class SplatRegisterViewModelAttribute<T> : Attribute;
+
+        [AttributeUsage(AttributeTargets.Class)]
+        internal class SplatRegisterViewModelAttribute : Attribute
         {
             public Type ViewModel { get; }
 
@@ -544,8 +548,10 @@ public class RegisterGenerator : IIncrementalGenerator
 
         var attribute = context.Attributes.Single();
         var location = attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation();
-        var viewModel = attribute.ConstructorArguments[0].Value?.ToString();
-        if (viewModel == null)
+        var constructorArgument = attribute.GetConstructorArguments<string>().FirstOrDefault();
+        var genericArgument = attribute.GetGenericType();
+        var viewModel = string.IsNullOrWhiteSpace(genericArgument) ? constructorArgument : genericArgument;
+        if (string.IsNullOrWhiteSpace(viewModel))
             return new RegisterInfos
             {
                 Type = RegisterType.ViewModel,
