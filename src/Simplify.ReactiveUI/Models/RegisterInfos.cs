@@ -10,6 +10,8 @@ public record struct RegisterInfos
 
     public RegisterType Type { get; set; }
 
+    public IEnumerable<string>? InterfaceNames { get; set; }
+
     public IEnumerable<RegisterInfo> Infos { get; set; }
 
     public readonly bool Equals(RegisterInfos other)
@@ -23,7 +25,9 @@ public record struct RegisterInfos
         unchecked
         {
             var hashCode = Type.GetHashCode();
-            hashCode = (hashCode * 397) ^ (Diagnostic != null ? Diagnostic.GetHashCode() : 0);
+            hashCode = (hashCode * 397) ^ (Diagnostic?.GetHashCode() ?? 0);
+            hashCode = (hashCode * 397) ^ (InterfaceNames?.Aggregate(hashCode, (current, prop) =>
+                current ^ prop.GetHashCode()) ?? 0);
             hashCode = (hashCode * 397) ^ Infos.Aggregate(hashCode, (current, prop) =>
                 current ^ prop.GetHashCode());
             return hashCode;

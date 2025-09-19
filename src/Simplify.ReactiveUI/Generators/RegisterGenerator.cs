@@ -577,6 +577,7 @@ public class RegisterGenerator : IIncrementalGenerator
         var location = attribute!.ApplicationSyntaxReference?.GetSyntax().GetLocation();
         var className = namedTypeSymbol.ToDisplayString();
 
+        var allInterfaces = namedTypeSymbol.AllInterfaces.Select(i => i.ToDisplayString()).ToList();
         var iViewForSymbol = namedTypeSymbol.AllInterfaces
             .FirstOrDefault(i => i.ToDisplayString().StartsWith("ReactiveUI.IViewFor<"));
 
@@ -592,6 +593,7 @@ public class RegisterGenerator : IIncrementalGenerator
                 Diagnostic = classLocation == null
                     ? null
                     : NotInheritedIForView(classLocation, className),
+                InterfaceNames = allInterfaces,
                 Type = RegisterType.ViewModel,
                 Infos = []
             };
@@ -606,12 +608,14 @@ public class RegisterGenerator : IIncrementalGenerator
             return new RegisterInfos
             {
                 Type = RegisterType.ViewModel,
+                InterfaceNames = allInterfaces,
                 Infos = []
             };
 
         return new RegisterInfos
         {
             Type = RegisterType.ViewModel,
+            InterfaceNames = allInterfaces,
             Infos =
             [
                 new RegisterInfo
