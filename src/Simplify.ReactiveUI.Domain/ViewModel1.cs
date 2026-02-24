@@ -1,14 +1,11 @@
-﻿using Splat;
+﻿using ReactiveUI;
+using ReactiveUI.SourceGenerators;
 
 namespace Simplify.ReactiveUI.Domain;
 
-[SplatRegister([typeof(IViewModel)])]
-[SplatRegisterConstant]
-[SplatRegisterViewModel(typeof(object))]
-public class ViewModel1 : IViewModel
+[IViewFor<ReactiveObject>]
+// ReSharper disable once PartialTypeWithSinglePart
+public partial class ViewModel1
 {
-    private void Test()
-    {
-        Locator.CurrentMutable.RegisterAllSimplifyReactiveUIDomain();
-    }
+    private void Test() { }
 }

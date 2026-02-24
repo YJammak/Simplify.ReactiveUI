@@ -4,16 +4,33 @@
 //-------------------------------------------------------------------------------
 
 using Splat;
+using ReactiveUI.Builder;
 
 namespace Simplify.ReactiveUI;
 
 public static class SplatRegisterExtensions
 {
     /// <summary>
-    /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
+    /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute
     /// </summary>
     public static void RegisterAll(this IMutableDependencyResolver resolver)
     {
         resolver.Register(() => new Simplify.ReactiveUI.Test.Address(), null);
+    }
+
+    /// <summary>
+    /// Register all items using SplatRegisterViewModelAttribute
+    /// </summary>
+    public static void RegisterAllViewsViews(this IMutableDependencyResolver resolver)
+    {
+
+    }
+
+    /// <summary>
+    /// Register all items using SplatRegisterViewModelAttribute
+    /// </summary>
+    public static void RegisterAllViews(this ReactiveUIBuilder builder)
+    {
+
     }
 }

@@ -210,17 +210,34 @@ public class RegisterGenerator : IIncrementalGenerator
         //-------------------------------------------------------------------------------
 
         {{reactiveUI}}using Splat;
+        using ReactiveUI.Builder;
 
         namespace {{namespace}};
 
         public static class SplatRegisterExtensions
         {
             /// <summary>
-            /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
+            /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute
             /// </summary>
             public static void RegisterAll{{method}}(this IMutableDependencyResolver resolver)
             {
         {{registers}}
+            }
+
+            /// <summary>
+            /// Register all items using SplatRegisterViewModelAttribute
+            /// </summary>
+            public static void RegisterAllViews{{method}}Views(this IMutableDependencyResolver resolver)
+            {
+        {{viewRegisters}}
+            }
+
+            /// <summary>
+            /// Register all items using SplatRegisterViewModelAttribute
+            /// </summary>
+            public static void RegisterAll{{method}}Views(this ReactiveUIBuilder builder)
+            {
+        {{builderViewRegisters}}
             }
         }
         """;
@@ -228,6 +245,11 @@ public class RegisterGenerator : IIncrementalGenerator
     private const string RegisterTemplate =
         """
                 resolver.{{method}}({{implementationType}}{{serviceType}}{{contract}});
+        """;
+
+    private const string BuilderRegisterTemplate =
+        """
+                builder.{{method}}<{{serviceType}},{{implementationType}}>();
         """;
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -375,14 +397,27 @@ public class RegisterGenerator : IIncrementalGenerator
                     string.IsNullOrWhiteSpace(info.ServiceType) ? "" : $", typeof({info.ServiceType})")
                 .Replace("{{contract}}", $", {(string.IsNullOrWhiteSpace(info.Contract) ? "null" : info.Contract)}"));
 
+        var viewBuilder = new StringBuilder();
+        var builderViewBuilder = new StringBuilder();
         foreach (var info in registerViewModelInfos)
-            builder.AppendLine(RegisterTemplate
+        {
+            viewBuilder.AppendLine(RegisterTemplate
                 .Replace("{{method}}", "Register")
                 .Replace("{{implementationType}}", $"() => new {info.ImplementationType}()")
                 .Replace("{{serviceType}}", $", typeof({info.ServiceType})")
                 .Replace("{{contract}}", ", null"));
 
+            builderViewBuilder.AppendLine(BuilderRegisterTemplate
+                .Replace("{{method}}", "RegisterView")
+                .Replace("{{implementationType}}", $"new {info.ImplementationType}()")
+                .Replace("{{serviceType}}", $", {info.ServiceType}"));
+        }
+
         var registers = builder.Length > 0 ? builder.ToString(0, builder.Length - 2) : string.Empty;
+        var viewRegisters = viewBuilder.Length > 0 ? viewBuilder.ToString(0, viewBuilder.Length - 2) : string.Empty;
+        var builderViewRegisters = builderViewBuilder.Length > 0
+            ? builderViewBuilder.ToString(0, builderViewBuilder.Length - 2)
+            : string.Empty;
 
         var output = RegisterClassTemplate
 #if DEBUG
@@ -394,7 +429,9 @@ public class RegisterGenerator : IIncrementalGenerator
             .Replace("{{namespace}}",
                 string.IsNullOrWhiteSpace(namespaceString) ? "Simplify.ReactiveUI" : namespaceString)
             .Replace("{{method}}", namespaceString.Replace(".", ""))
-            .Replace("{{registers}}", registers);
+            .Replace("{{registers}}", registers)
+            .Replace("{{viewRegisters}}", viewRegisters)
+            .Replace("{{builderViewRegisters}}", builderViewRegisters);
 
         context.AddSource("SplatRegisterExtensions.g.cs", SourceText.From(output, Encoding.UTF8));
     }
@@ -648,7 +685,7 @@ public class RegisterGenerator : IIncrementalGenerator
                     .ToList()
             : attribute.ConstructorArguments[0].Value == null
                 ? []
-                : [attribute.ConstructorArguments[0].Value?.ToString()];
+                : [attribute.ConstructorArguments[0].Value!.ToString()];
 
         var contract = attribute.ConstructorArguments[1].Value as string;
         var includeBaseType = attribute.ConstructorArguments[2].Value as bool? ?? false;
