@@ -5,13 +5,14 @@
 
 using Splat;
 using ReactiveUI.Builder;
+using Avalonia;
 
 namespace Simplify.ReactiveUI;
 
 public static class SplatRegisterExtensions
 {
     /// <summary>
-    /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute
+    /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
     /// </summary>
     public static void RegisterAll(this IMutableDependencyResolver resolver)
     {
@@ -19,10 +20,18 @@ public static class SplatRegisterExtensions
     }
 
     /// <summary>
-    /// Register all items using SplatRegisterViewModelAttribute
+    /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
     /// </summary>
     public static void RegisterAll(this ReactiveUIBuilder builder)
     {
         AppLocator.CurrentMutable.Register(() => new Simplify.ReactiveUI.Test.Address(), null);
+    }
+
+    /// <summary>
+    /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
+    /// </summary>
+    public static void RegisterAll(this AppBuilder builder)
+    {
+        RegisterAll(AppLocator.CurrentMutable);
     }
 }

@@ -211,6 +211,7 @@ public class RegisterGenerator : IIncrementalGenerator
 
         {{reactiveUI}}using Splat;
         using ReactiveUI.Builder;
+        using Avalonia;
 
         namespace {{namespace}};
 
@@ -230,6 +231,14 @@ public class RegisterGenerator : IIncrementalGenerator
             public static void RegisterAll{{method}}(this ReactiveUIBuilder builder)
             {
         {{builderRegisters}}
+            }
+
+            /// <summary>
+            /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
+            /// </summary>
+            public static void RegisterAll{{method}}(this AppBuilder builder)
+            {
+                RegisterAll{{method}}(AppLocator.CurrentMutable);
             }
         }
         """;
