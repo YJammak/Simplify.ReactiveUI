@@ -236,9 +236,10 @@ public class RegisterGenerator : IIncrementalGenerator
             /// <summary>
             /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
             /// </summary>
-            public static void RegisterAll{{method}}(this AppBuilder builder)
+            public static AppBuilder RegisterAll{{method}}(this AppBuilder builder)
             {
                 RegisterAll{{method}}(AppLocator.CurrentMutable);
+                return builder;
             }
         }
         """;
