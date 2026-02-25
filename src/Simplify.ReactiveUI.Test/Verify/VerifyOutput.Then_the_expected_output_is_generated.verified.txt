@@ -21,16 +21,8 @@ public static class SplatRegisterExtensions
     /// <summary>
     /// Register all items using SplatRegisterViewModelAttribute
     /// </summary>
-    public static void RegisterAllViewsViews(this IMutableDependencyResolver resolver)
+    public static void RegisterAll(this ReactiveUIBuilder builder)
     {
-
-    }
-
-    /// <summary>
-    /// Register all items using SplatRegisterViewModelAttribute
-    /// </summary>
-    public static void RegisterAllViews(this ReactiveUIBuilder builder)
-    {
-
+        AppLocator.CurrentMutable.Register(() => new Simplify.ReactiveUI.Test.Address(), null);
     }
 }

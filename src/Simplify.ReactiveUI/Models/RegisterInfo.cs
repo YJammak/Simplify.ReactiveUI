@@ -10,6 +10,8 @@ public record struct RegisterInfo
 
     public string? ServiceType { get; set; }
 
+    public string? ServiceOriginalType { get; set; }
+
     public string ImplementationType { get; set; }
 
     public readonly bool Equals(RegisterInfo other)
@@ -26,6 +28,7 @@ public record struct RegisterInfo
             var hashCode = ImplementationType.GetHashCode();
             hashCode = (hashCode * 397) ^ (Contract != null ? Contract.GetHashCode() : 0);
             hashCode = (hashCode * 397) ^ (ServiceType != null ? ServiceType.GetHashCode() : 0);
+            hashCode = (hashCode * 397) ^ (ServiceOriginalType != null ? ServiceOriginalType.GetHashCode() : 0);
             return hashCode;
         }
     }

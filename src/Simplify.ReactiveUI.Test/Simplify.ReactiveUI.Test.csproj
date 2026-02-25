@@ -33,6 +33,10 @@
     <ItemGroup>
         <Compile Remove="Address.cs"/>
         <EmbeddedResource Include="Address.cs"/>
+        <Compile Remove="TestViewModel.cs"/>
+        <EmbeddedResource Include="TestViewModel.cs"/>
+        <Compile Remove="TestView.cs"/>
+        <EmbeddedResource Include="TestView.cs"/>
     </ItemGroup>
 
 </Project>

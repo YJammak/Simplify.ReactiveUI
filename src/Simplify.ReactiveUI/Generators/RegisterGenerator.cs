@@ -217,7 +217,7 @@ public class RegisterGenerator : IIncrementalGenerator
         public static class SplatRegisterExtensions
         {
             /// <summary>
-            /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute
+            /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
             /// </summary>
             public static void RegisterAll{{method}}(this IMutableDependencyResolver resolver)
             {
@@ -225,19 +225,11 @@ public class RegisterGenerator : IIncrementalGenerator
             }
 
             /// <summary>
-            /// Register all items using SplatRegisterViewModelAttribute
+            /// Register all items using SplatRegisterAttribute, SplatRegisterConstantAttribute, SplatRegisterLazySingletonAttribute, SplatRegisterViewModelAttribute
             /// </summary>
-            public static void RegisterAllViews{{method}}Views(this IMutableDependencyResolver resolver)
+            public static void RegisterAll{{method}}(this ReactiveUIBuilder builder)
             {
-        {{viewRegisters}}
-            }
-
-            /// <summary>
-            /// Register all items using SplatRegisterViewModelAttribute
-            /// </summary>
-            public static void RegisterAll{{method}}Views(this ReactiveUIBuilder builder)
-            {
-        {{builderViewRegisters}}
+        {{builderRegisters}}
             }
         }
         """;
@@ -247,9 +239,14 @@ public class RegisterGenerator : IIncrementalGenerator
                 resolver.{{method}}({{implementationType}}{{serviceType}}{{contract}});
         """;
 
+    private const string StaticRegisterTemplate =
+        """
+                AppLocator.CurrentMutable.{{method}}({{implementationType}}{{serviceType}}{{contract}});
+        """;
+
     private const string BuilderRegisterTemplate =
         """
-                builder.{{method}}<{{serviceType}},{{implementationType}}>();
+                builder.{{method}}<{{implementationType}},{{serviceType}}>();
         """;
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -373,7 +370,9 @@ public class RegisterGenerator : IIncrementalGenerator
             return;
 
         var builder = new StringBuilder();
+        var builderBuilder = new StringBuilder();
         foreach (var info in registerInfos)
+        {
             builder.AppendLine(RegisterTemplate
                 .Replace("{{method}}", "Register")
                 .Replace("{{implementationType}}", $"() => new {info.ImplementationType}()")
@@ -381,7 +380,16 @@ public class RegisterGenerator : IIncrementalGenerator
                     string.IsNullOrWhiteSpace(info.ServiceType) ? "" : $", typeof({info.ServiceType})")
                 .Replace("{{contract}}", $", {(string.IsNullOrWhiteSpace(info.Contract) ? "null" : info.Contract)}"));
 
+            builderBuilder.AppendLine(StaticRegisterTemplate
+                .Replace("{{method}}", "Register")
+                .Replace("{{implementationType}}", $"() => new {info.ImplementationType}()")
+                .Replace("{{serviceType}}",
+                    string.IsNullOrWhiteSpace(info.ServiceType) ? "" : $", typeof({info.ServiceType})")
+                .Replace("{{contract}}", $", {(string.IsNullOrWhiteSpace(info.Contract) ? "null" : info.Contract)}"));
+        }
+
         foreach (var info in registerConstantInfos)
+        {
             builder.AppendLine(RegisterTemplate
                 .Replace("{{method}}", "RegisterConstant")
                 .Replace("{{implementationType}}", $"new {info.ImplementationType}()")
@@ -389,7 +397,16 @@ public class RegisterGenerator : IIncrementalGenerator
                     string.IsNullOrWhiteSpace(info.ServiceType) ? "" : $", typeof({info.ServiceType})")
                 .Replace("{{contract}}", $", {(string.IsNullOrWhiteSpace(info.Contract) ? "null" : info.Contract)}"));
 
+            builderBuilder.AppendLine(StaticRegisterTemplate
+                .Replace("{{method}}", "RegisterConstant")
+                .Replace("{{implementationType}}", $"new {info.ImplementationType}()")
+                .Replace("{{serviceType}}",
+                    string.IsNullOrWhiteSpace(info.ServiceType) ? "" : $", typeof({info.ServiceType})")
+                .Replace("{{contract}}", $", {(string.IsNullOrWhiteSpace(info.Contract) ? "null" : info.Contract)}"));
+        }
+
         foreach (var info in registerLazySingletonInfos)
+        {
             builder.AppendLine(RegisterTemplate
                 .Replace("{{method}}", "RegisterLazySingleton")
                 .Replace("{{implementationType}}", $"() => new {info.ImplementationType}()")
@@ -397,26 +414,31 @@ public class RegisterGenerator : IIncrementalGenerator
                     string.IsNullOrWhiteSpace(info.ServiceType) ? "" : $", typeof({info.ServiceType})")
                 .Replace("{{contract}}", $", {(string.IsNullOrWhiteSpace(info.Contract) ? "null" : info.Contract)}"));
 
-        var viewBuilder = new StringBuilder();
-        var builderViewBuilder = new StringBuilder();
+            builderBuilder.AppendLine(StaticRegisterTemplate
+                .Replace("{{method}}", "RegisterLazySingleton")
+                .Replace("{{implementationType}}", $"() => new {info.ImplementationType}()")
+                .Replace("{{serviceType}}",
+                    string.IsNullOrWhiteSpace(info.ServiceType) ? "" : $", typeof({info.ServiceType})")
+                .Replace("{{contract}}", $", {(string.IsNullOrWhiteSpace(info.Contract) ? "null" : info.Contract)}"));
+        }
+
         foreach (var info in registerViewModelInfos)
         {
-            viewBuilder.AppendLine(RegisterTemplate
+            builder.AppendLine(RegisterTemplate
                 .Replace("{{method}}", "Register")
                 .Replace("{{implementationType}}", $"() => new {info.ImplementationType}()")
                 .Replace("{{serviceType}}", $", typeof({info.ServiceType})")
                 .Replace("{{contract}}", ", null"));
 
-            builderViewBuilder.AppendLine(BuilderRegisterTemplate
+            builderBuilder.AppendLine(BuilderRegisterTemplate
                 .Replace("{{method}}", "RegisterView")
-                .Replace("{{implementationType}}", $"new {info.ImplementationType}()")
-                .Replace("{{serviceType}}", $", {info.ServiceType}"));
+                .Replace("{{implementationType}}", $"{info.ImplementationType}")
+                .Replace("{{serviceType}}", $"{info.ServiceOriginalType}"));
         }
 
         var registers = builder.Length > 0 ? builder.ToString(0, builder.Length - 2) : string.Empty;
-        var viewRegisters = viewBuilder.Length > 0 ? viewBuilder.ToString(0, viewBuilder.Length - 2) : string.Empty;
-        var builderViewRegisters = builderViewBuilder.Length > 0
-            ? builderViewBuilder.ToString(0, builderViewBuilder.Length - 2)
+        var builderRegisters = builderBuilder.Length > 0
+            ? builderBuilder.ToString(0, builderBuilder.Length - 2)
             : string.Empty;
 
         var output = RegisterClassTemplate
@@ -430,8 +452,7 @@ public class RegisterGenerator : IIncrementalGenerator
                 string.IsNullOrWhiteSpace(namespaceString) ? "Simplify.ReactiveUI" : namespaceString)
             .Replace("{{method}}", namespaceString.Replace(".", ""))
             .Replace("{{registers}}", registers)
-            .Replace("{{viewRegisters}}", viewRegisters)
-            .Replace("{{builderViewRegisters}}", builderViewRegisters);
+            .Replace("{{builderRegisters}}", builderRegisters);
 
         context.AddSource("SplatRegisterExtensions.g.cs", SourceText.From(output, Encoding.UTF8));
     }
@@ -483,6 +504,7 @@ public class RegisterGenerator : IIncrementalGenerator
             Infos = serviceTypes.Select(s => new RegisterInfo
             {
                 ServiceType = s,
+                ServiceOriginalType = s,
                 ImplementationType = className,
                 Contract = contract,
                 Location = location
@@ -532,6 +554,7 @@ public class RegisterGenerator : IIncrementalGenerator
             Infos = serviceTypes.Select(s => new RegisterInfo
             {
                 ServiceType = s,
+                ServiceOriginalType = s,
                 ImplementationType = className,
                 Contract = contract,
                 Location = location
@@ -574,6 +597,7 @@ public class RegisterGenerator : IIncrementalGenerator
             Infos = serviceTypes.Select(s => new RegisterInfo
             {
                 ServiceType = s,
+                ServiceOriginalType = s,
                 ImplementationType = className,
                 Contract = contract,
                 Location = location
@@ -658,6 +682,7 @@ public class RegisterGenerator : IIncrementalGenerator
                 new RegisterInfo
                 {
                     ServiceType = $"IViewFor<{viewModel}>",
+                    ServiceOriginalType = viewModel,
                     ImplementationType = className,
                     Contract = null,
                     Location = location
